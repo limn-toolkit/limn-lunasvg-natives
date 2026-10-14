@@ -1,0 +1,69 @@
+# On every change to what could change the payload: build all six slices, fuzz where fork()
+# exists, package, run the JNI tests on a Linux runner against the slice built for it, and rehearse
+# a consumer resolving the jars. Nothing is published.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/**"
+      - "src/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle/**"
+      - "gradle.properties"
+      - "versions.properties"
+      - ".github/workflows/ci.yml"
+      - ".github/workflows/natives.yml"
+  pull_request:
+    paths:
+      - "scripts/**"
+      - "src/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle/**"
+      - "gradle.properties"
+      - "versions.properties"
+      - ".github/workflows/ci.yml"
+      - ".github/workflows/natives.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  natives:
+    uses: ./.github/workflows/natives.yml
+
+  package:
+    name: test, package and rehearse a consumer
+    needs: natives
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: lunasvg-native-*
+          merge-multiple: true
+          path: native/dist
+
+      - name: Show what was produced
+        run: ls -lR native/dist
+
+      # The JNI tests load the linux-x86_64 library this runner can load: the handshake, a document
+      # opened, changed and drawn, a damaged one refused, eight threads at once.
+      - name: Test
+        run: ./gradlew test
+
+      - name: Rehearse the consumer
+        run: bash scripts/rehearse-consumer.sh

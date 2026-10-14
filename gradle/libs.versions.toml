@@ -1,0 +1,14 @@
+[versions]
+central-publish = "0.37.0"
+junit = "6.1.3"
+
+[libraries]
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+
+[plugins]
+# Maven Central's own upload API takes a signed bundle, which `maven-publish` alone cannot
+# produce: this plugin turns the publication into that bundle, signs every artifact in it, and
+# hands it to the Central Portal. Same plugin, same version, as limn-toolkit and limn-ffmpeg-natives.
+central-publish = { id = "com.vanniktech.maven.publish", version.ref = "central-publish" }
