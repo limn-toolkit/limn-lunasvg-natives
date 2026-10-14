@@ -24,7 +24,9 @@ Nothing publishes itself: the deployment sits staged on the Central Portal until
 ## Moving lunasvg
 
 Fetch the new tag's archive, read the diff since the pinned one, copy its SHA-256 into the script
-with the version, and run the fuzz before anything else: ADR 066 asks it of every lunasvg this
+with the version, and see whether each patch in `patches/` still applies and is still needed: one
+upstream has made its own is deleted, since the fuzz seed it came with keeps watching. Then run the
+fuzz before anything else: ADR 066 asks it of every lunasvg this
 repository packages, and a version that crashes or hangs on a damaged copy is not packaged.
 
 ## A shim change

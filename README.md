@@ -22,9 +22,13 @@ Targets: `linux-x86_64`, `linux-aarch64`, `macos-x86_64`, `macos-aarch64`, `wind
 
 ## What is inside, and what is not
 
-- **lunasvg and plutovg, unmodified,** from the pinned source archive in
-  `scripts/build-lunasvg.sh` (version and SHA-256), built for release (`NDEBUG`: an assertion is an
-  abort, and damaged files reach them). MIT; their licences travel in every jar.
+- **lunasvg and plutovg** from the pinned source archive in `scripts/build-lunasvg.sh` (version
+  and SHA-256), built for release (`NDEBUG`: an assertion is an abort, and damaged files reach
+  them). MIT; their licences travel in every jar.
+- **One patch,** in `patches/`, applied to the verified archive: a budget of splits for each curve
+  plutovg flattens. Without it a curve far from the origin, a dashed circle at x = 9,999,912, was
+  flattened without end: the fuzz found it on Linux. Upstream has the same code; the patch's header
+  says what it changes and why, and it goes when a lunasvg that no longer needs it is packaged.
 - **The shim,** `src/main/cpp/limn_svg.cpp`, Apache 2.0: open a document from bytes, read its size,
   set an attribute of an element by id, draw it into straight RGBA, close it, register a font.
   Every call takes one process-wide lock, and no C++ exception crosses into Java.

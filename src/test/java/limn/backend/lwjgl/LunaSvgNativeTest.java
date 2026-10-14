@@ -114,6 +114,27 @@ class LunaSvgNativeTest {
                 "bytes that are no font are refused, and freed once");
     }
 
+    /**
+     * The case the fuzz found on Linux: a dashed circle at x = 9,999,912, whose curves plutovg
+     * flattened without end until patches/plutovg-flatten-split-budget.patch gave each a budget.
+     * Unpatched, this test never returns: the native call spins, and the timeout reports it.
+     */
+    @Test
+    void aCurveFarFromTheOriginIsDrawnAndInTime() throws Exception {
+        byte[] svg = Files.readAllBytes(Path.of("src/test/fuzz/seeds/far-dashed-circle.svg"));
+        org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(10), () -> {
+            long doc = LunaSvgNative.open(svg);
+            assertNotEquals(0, doc);
+            try {
+                for (int side : new int[] {16, 256}) {
+                    assertTrue(LunaSvgNative.render(doc, side, side, new byte[side * side * 4]), "at " + side);
+                }
+            } finally {
+                LunaSvgNative.close(doc);
+            }
+        });
+    }
+
     @Test
     void textOutsideAsciiReachesAnAttributeWhole() {
         long doc = LunaSvgNative.open(utf8("<svg xmlns='http://www.w3.org/2000/svg' width='4' height='4'>"

@@ -9,6 +9,7 @@ on:
     branches: [main]
     paths:
       - "scripts/**"
+      - "patches/**"
       - "src/**"
       - "build.gradle.kts"
       - "settings.gradle.kts"
@@ -20,6 +21,7 @@ on:
   pull_request:
     paths:
       - "scripts/**"
+      - "patches/**"
       - "src/**"
       - "build.gradle.kts"
       - "settings.gradle.kts"

@@ -26,6 +26,10 @@
 # (ADR 066 §3): LUNASVG_DISABLE_LOAD_SYSTEM_FONTS is deliberately NOT defined. The toolkit also
 # registers the fonts it bundles through the shim's addFont.
 #
+# PATCHED, ONCE. The archive is verified and then patches/*.patch are applied to it: one today, a
+# budget of splits for each curve plutovg flattens, without which a curve far from the origin
+# never ended (the patch's header says how the fuzz found it). Every other line is upstream's.
+#
 # LICENCE. lunasvg and plutovg are MIT; their notices travel in every jar (stage_licence below).
 # The shim is Limn's own, Apache 2.0.
 
@@ -56,7 +60,7 @@ while [ $# -gt 0 ]; do
         --arch)  ARCHS="$2"; shift 2 ;;
         --jobs)  JOBS="$2"; shift 2 ;;
         --clean) CLEAN=1; shift ;;
-        -h|--help) sed -n '2,32p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,36p' "$0"; exit 0 ;;
         *) echo "unknown option: $1" >&2; exit 2 ;;
     esac
 done
@@ -154,6 +158,24 @@ esac
 mkdir -p "${WORK_DIR}/src"
 TARBALL="${WORK_DIR}/src/lunasvg-${LUNASVG_VERSION}.tar.gz"
 
+# THE PATCHES in patches/, applied in name order to the verified archive, each saying in its header
+# what it fixes and how it was found. The source tree records which it was built with, and a tree
+# extracted before a patch was added, or with another, is extracted again: a build never mixes.
+PATCH_DIR="${REPO_ROOT}/patches"
+PATCHES=()
+for p in "${PATCH_DIR}"/*.patch; do
+    [ -f "$p" ] && PATCHES+=("$p")
+done
+sha256_of() {
+    if command -v shasum >/dev/null 2>&1; then shasum -a 256 | cut -d' ' -f1; else sha256sum | cut -d' ' -f1; fi
+}
+PATCH_STAMP="$(cat ${PATCHES[@]+"${PATCHES[@]}"} /dev/null | sha256_of)"
+PATCH_MARKER="${SRC_DIR}/.limn-patches"
+if [ -d "${SRC_DIR}" ] && [ "$(cat "${PATCH_MARKER}" 2>/dev/null)" != "${PATCH_STAMP}" ]; then
+    echo "the source tree was not built with the patches of patches/; extracting it again"
+    rm -rf "${SRC_DIR}"
+fi
+
 if [ ! -d "${SRC_DIR}" ]; then
     if [ ! -f "${TARBALL}" ]; then
         echo "fetching lunasvg ${LUNASVG_VERSION}"
@@ -175,6 +197,11 @@ if [ ! -d "${SRC_DIR}" ]; then
         exit 1
     fi
     tar -xzf "${TARBALL}" -C "${WORK_DIR}/src"
+    for p in ${PATCHES[@]+"${PATCHES[@]}"}; do
+        echo "applying $(basename "$p")"
+        patch -d "${SRC_DIR}" -p1 --forward --batch --quiet < "$p"
+    done
+    echo "${PATCH_STAMP}" > "${PATCH_MARKER}"
 fi
 
 # The header's version must be the pin's: a tarball that says one version and holds another is
@@ -355,9 +382,12 @@ stage_licence() {
     cp "${SRC_DIR}/LICENSE" "${DIST}/LICENSE-lunasvg.txt"
     cp "${SRC_DIR}/plutovg/LICENSE" "${DIST}/LICENSE-plutovg.txt"
     cat > "${DIST}/NOTICE-lunasvg.txt" <<NOTICE
-This artifact contains lunasvg ${LUNASVG_VERSION} and the plutovg it carries, unmodified, compiled
-from the upstream source archive https://github.com/sammycage/lunasvg/archive/refs/tags/v${LUNASVG_VERSION}.tar.gz
-(SHA-256 ${LUNASVG_SHA256}) into liblimnsvg together with Limn's JNI shim.
+This artifact contains lunasvg ${LUNASVG_VERSION} and the plutovg it carries, compiled from the
+upstream source archive https://github.com/sammycage/lunasvg/archive/refs/tags/v${LUNASVG_VERSION}.tar.gz
+(SHA-256 ${LUNASVG_SHA256}) into liblimnsvg together with Limn's JNI shim. One change was made to
+plutovg: a budget of splits for each curve it flattens, so that a curve far from the origin is
+drawn rather than flattened without end. The change is the file patches/plutovg-flatten-split-budget.patch
+of https://github.com/limn-toolkit/limn-lunasvg-natives, at the tag of this version.
 
 lunasvg is Copyright (c) Samuel Ugochukwu and is licensed under the MIT License; see
 LICENSE-lunasvg.txt. plutovg is Copyright (c) Samuel Ugochukwu and is licensed under the MIT

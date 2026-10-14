@@ -70,15 +70,16 @@ jobs:
       - name: Install a JDK (manylinux)
         if: startsWith(matrix.slice, 'linux')
         run: |
-          dnf install -y --setopt=install_weak_deps=False diffutils file which java-17-openjdk-devel
+          dnf install -y --setopt=install_weak_deps=False diffutils file patch which java-17-openjdk-devel
           echo "javac: $(command -v javac)"
 
       - uses: msys2/setup-msys2@v2
         if: startsWith(matrix.slice, 'windows')
         with:
           msystem: ${{ matrix.msystem }}
-          # base-devel for the binutils whose objdump the import check calls; clang for the
-          # compilers, the linker and the static C++ runtime. Nothing else is needed.
+          # base-devel for the binutils whose objdump the import check calls and the patch that
+          # applies patches/; clang for the compilers, the linker and the static C++ runtime.
+          # Nothing else is needed.
           install: base-devel
           pacboy: ${{ matrix.pacboy }}
 

@@ -1,0 +1,42 @@
+plutovg: a budget of splits for each curve it flattens
+
+Found by this repository's fuzz on Linux, where glibc's rand() reaches cases the macOS sequence
+does not (src/test/fuzz/seeds/far-dashed-circle.svg, a damaged copy of animated.svg). A curve far
+from the origin, a circle at x = 9,999,912 with a dashed stroke, is flattened by halving it until
+it reads flat. There a float's step is about 1.0, the halves of a curve whose points are one step
+apart are the curve itself, and it never reads flat: the stack's depth limit does not stop it,
+since the half that stays on the stack is split again in the same slot. The loop never ended; on
+macOS the process spun, on Linux it grew until it was killed.
+
+The budget ends it: at most 65,536 splits for one curve, after which what is on the stack is drawn
+as straight lines. A curve that reads flat as it should never comes near it.
+
+Applied by scripts/build-lunasvg.sh after the archive's checksum is verified. Present in plutovg
+1.3.1 (lunasvg 3.5.0) and on plutovg's main branch on 2026-10-14.
+
+--- a/plutovg/source/plutovg-path.c
++++ b/plutovg/source/plutovg-path.c
+@@ -495,6 +495,7 @@
+             beziers[0].x4 = points[2].x;
+             beziers[0].y4 = points[2].y;
+             bezier_t* b = beziers;
++            int splits = 0;
+             while(b >= beziers) {
+                 float y4y1 = b->y4 - b->y1;
+                 float x4x1 = b->x4 - b->x1;
+@@ -507,13 +508,14 @@
+                     l = 1.f;
+                 }
+ 
+-                if(d < threshold*l || b == beziers + 31) {
++                if(d < threshold*l || b == beziers + 31 || splits == 65536) {
+                     plutovg_point_t p = { b->x4, b->y4 };
+                     traverse_func(closure, PLUTOVG_PATH_COMMAND_LINE_TO, &p, 1);
+                     --b;
+                 } else {
+                     split_bezier(b, b + 1, b);
+                     ++b;
++                    ++splits;
+                 }
+             }
+ 
